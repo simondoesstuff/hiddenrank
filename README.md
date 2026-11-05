@@ -25,6 +25,8 @@ The **preview** uses N=512 for Figs. 1–2 and N=1024 with orthogonalized Gaussi
 
 ```sh
 just paper                  # original N / realization counts; see config/paper.yaml
+# Extend the existing contextual checkpoints from 10 to 50 realizations:
+uv run snakemake -s workflow/Snakefile --configfile config/replication.yaml --config trials=50 --cores 2
 just dry-run
 # One figure, or custom settings:
 uv run snakemake -s workflow/Snakefile --cores 1 data/preview/figures/figure3_go_nogo.png

@@ -197,13 +197,12 @@ def plot_experiment(source: str | Path, output: str | Path) -> Path:
                 axes[2].errorbar(data["axis"], probability, yerr=error, color=COLORS[0], marker="o", capsize=2)
                 axes[2].set(xlabel="Mean stimulus strength c", ylabel="P(Go)", ylim=(-.05, 1.05), title="Noisy detection")
             else:
-                values = data["endpoints"]
-                mean = values.mean(axis=0)
-                sem = values.std(axis=0, ddof=1)/np.sqrt(len(values)) if len(values)>1 else np.zeros_like(mean)
+                probability = data["decisions"].mean(axis=0)
+                error = np.sqrt(probability*(1-probability)/meta["trials"])
                 x = np.arange(4)
-                axes[2].bar(x, mean, yerr=sem, color=COLORS, width=.65, capsize=2)
+                axes[2].bar(x, probability, yerr=error, color=COLORS, width=.65, capsize=2)
                 axes[2].set_xticks(x, ["A / ctx A", "B / ctx A", "A / ctx B", "B / ctx B"], rotation=20)
-                axes[2].set(ylabel="End-stimulus readout", title="Context-dependent discrimination")
+                axes[2].set(ylabel="P(Go)", ylim=(-.05, 1.05), title="Context-dependent discrimination")
         titles = {"go_nogo": "Figure 3 · Go / Nogo and generalization (Eq. 145)",
                   "detection": "Figure 4 · Detection of a noisy continuous stimulus (Eq. 151)",
                   "context": "Figure 5 · Context-dependent discrimination (Eq. 155)",

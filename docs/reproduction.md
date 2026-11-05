@@ -27,7 +27,7 @@ Each gallery links PNG, SVG and NPZ. `just dry-run` inspects the preview DAG. Pa
 ## Runtime and resuming
 
 - Snakemake stores each task realization in `data/<profile>/replicates/<figure>/<id>.npz`, then aggregates it.
-- Increasing `trials` reuses completed IDs. Seeds are independent of execution order, shard boundaries and ensemble size.
+- Increasing `trials` reuses completed IDs. For example, append `--config trials=50` with `config/replication.yaml` to extend ten contextual realizations to fifty. Seeds are independent of execution order, shard boundaries and ensemble size.
 - Conditions share the same quenched matrix and run as a batch. Only compact observables are retained. Memory: O(N² + conditions × N).
 - Gaussian patterns stay fixed across connectivity realizations. No successful-seed selection is performed.
 - Use `just replication 2` for two concurrent jobs. The CPU implementation uses JAX; no Rust build is needed.
