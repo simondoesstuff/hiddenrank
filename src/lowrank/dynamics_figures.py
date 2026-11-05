@@ -1,7 +1,6 @@
 """Seeded recreations of spontaneous dynamics (Fig. 1) and input geometry (Fig. 2)."""
 from pathlib import Path
 import json
-from typing import Any
 
 import jax.numpy as jnp
 import numpy as np
@@ -23,109 +22,152 @@ def _simulate(m, n, chi, g, x0, drives, dt):
     return simulate(net, jnp.asarray(x0), jnp.asarray(drives), dt=dt, sample_every=max(1, round(.2 / dt)))
 
 
-def run_experiment(name, output, *, size=512, trials=4, seed=2018, dt=.1, duration=40.):
-    if size < 8 or trials < 1 or dt <= 0 or duration <= 0:
-        raise ValueError("size>=8, trials>=1, dt>0, duration>0 required")
-    rng = np.random.default_rng(seed)
-    steps = round(duration / dt)
-    arrays: dict[str, Any]
-    if name == 'spontaneous':
-        static_boundary, chaotic_boundary = _phase_boundaries()
-        conditions = np.array([[.7, .8], [.7, 2.2], [2., .8], [2., 2.2]])
-        base_m, base_n = rng.normal(size=(2, size))
-        chi = rng.normal(size=(size, size)).astype(np.float32) / np.float32(np.sqrt(size))
-        traces, stats = [], []
-        for g, strength in conditions:
-            m, n = base_m + np.sqrt(strength), base_n + np.sqrt(strength)
-            realizations = []
-            sample_trace = None
-            for trial in range(trials):
-                bulk = chi if trial == 0 else rng.normal(size=(size, size)).astype(np.float32) / np.float32(np.sqrt(size))
-                for sign in (1., -1.):
-                    result = _simulate(m, n, bulk, float(g), sign*m,
-                                       np.zeros((steps, size), dtype=np.float32), dt)
-                    x = np.asarray(result.states)
-                    tail = x[len(x)//2:]
-                    realizations.append([np.mean(np.tanh(tail) @ n / size),
-                                         np.var(tail.mean(axis=0)), np.mean(np.var(tail, axis=0))])
-                    if trial == 0 and sign == 1:
-                        sample_trace = x[:, :6]
-            traces.append(sample_trace)
-            stats.append(realizations)
-        # Continue the positive branch through the stationary-to-chaotic transition.
-        # Independent chaotic solves can fall onto the unstable zero-mean branch.
-        gs = np.linspace(0, 3.6, 73)
-        theory = np.full((len(gs), 4), np.nan)
-        previous_chaotic_initial = None
-        for i, g in enumerate(gs):
-            p = GaussianRankOne(g=float(g), mean_m=np.sqrt(2.2), mean_n=np.sqrt(2.2))
-            points = solve_fixed_points(p, seeds=[(1.4, 2.+g*g)], quadrature_order=200)
-            positive = [pt for pt in points if pt.kappa[0] > 1e-3]
-            pt = max(positive, key=lambda pt: pt.kappa[0]) if positive else None
-            if pt is not None and pt.stable:
-                theory[i] = [pt.kappa[0], pt.variance, 0., 0.]
-                # A small positive temporal variance initiates chaotic continuation.
-                previous_chaotic_initial = (float(pt.kappa[0]), pt.variance+.01,
-                                            max(0., pt.variance-.01))
-            elif g > 1:
-                structured_onset = np.interp(g, chaotic_boundary[:,0], chaotic_boundary[:,1])
-                if 2.2 <= structured_onset:
-                    # Above the chaotic pitchfork only the zero-mean branch is selected.
-                    initial = (0., g*g, 0.)
-                else:
-                    initial = previous_chaotic_initial
-                c = solve_chaotic(p, initial=initial, quadrature_order=200)
-                if 2.2 > structured_onset and c.kappa[0] < 1e-4:
-                    raise RuntimeError(f"structured chaotic continuation lost its branch at g={g}")
-                theory[i] = [abs(c.kappa[0]), c.long_lag_variance, c.temporal_variance, 1.]
-                previous_chaotic_initial = (float(c.kappa[0]), c.variance, c.long_lag_variance)
-        arrays = dict(conditions=conditions, traces=np.asarray(traces), statistics=np.asarray(stats),
-                      times=np.asarray(result.times), static_boundary=static_boundary,
-                      chaotic_boundary=chaotic_boundary, gs=gs, theory=theory)
-    elif name == 'inputs':
-        # All three geometries use iid Gaussian centered components, as in STAR Methods.
-        m0, n0, orth = rng.normal(size=(3, size))
-        chi = rng.normal(size=(size, size)).astype(np.float32) / np.float32(np.sqrt(size))
-        m, n, direction = m0, n0, n0
-        strength = ((np.arange(steps)+.5)*dt >= duration*.25) & ((np.arange(steps)+.5)*dt < duration*.65)
-        drives = strength[:, None] * direction[None, :]
-        trajectories = []
-        for trial in range(trials):
-            bulk = chi if trial == 0 else rng.normal(size=(size, size)).astype(np.float32)/np.float32(np.sqrt(size))
-            result = _simulate(m, n, bulk, .8, np.zeros(size), drives, dt)
-            trajectories.append(np.asarray(result.states))
-        average = np.mean(trajectories, axis=0)
-        basis = np.stack((direction, m), axis=1)
-        coordinates = average @ np.linalg.pinv(basis).T
-        centered = average - average.mean(axis=0)
-        zscore = centered / np.maximum(centered.std(axis=0), 1e-10)
-        _, singular, vt = np.linalg.svd(zscore, full_matrices=False)
-        explained = singular[:6]**2 / (singular**2).sum()
-        pc_alignment = np.abs(vt[:2] @ basis) / np.linalg.norm(basis, axis=0)
-        amplitudes = np.linspace(0, 2., 41)
-        curves = np.full((3, len(amplitudes), 3), np.nan)
-        for kind in range(3):
-            for i, amplitude in enumerate(amplitudes):
-                mean = np.sqrt(3.5) if kind == 2 else 0.
-                # Input direction n's centered component; independent for kind zero.
-                p = GaussianRankOne(g=.8, mean_m=mean, mean_n=mean,
-                                    var_input=amplitude**2,
-                                    cov_n_input=amplitude if kind else 0.)
-                points = solve_fixed_points(p, seeds=[(-2., 4.), (0., 1.), (2., 4.)])
-                for point in points:
-                    branch = 1 if not point.stable else 0 if point.kappa[0] < -1e-5 else 2
-                    curves[kind, i, branch] = point.kappa[0] if abs(point.kappa[0]) > 1e-10 else 0.
-        arrays = dict(times=np.asarray(result.times), traces=average[:, :6], coordinates=coordinates,
-                      explained=explained, pc_alignment=pc_alignment, amplitudes=amplitudes,
-                      curves=curves, onset=duration*.25, offset=duration*.65)
-    else:
-        raise ValueError(f"unknown experiment {name}")
+def _spontaneous_theory(chaotic_boundary):
+    # Continue the positive branch through the stationary-to-chaotic transition.
+    # Independent chaotic solves can fall onto the unstable zero-mean branch.
+    gs = np.linspace(0, 3.6, 73)
+    theory = np.full((len(gs), 4), np.nan)
+    previous_chaotic_initial = None
+    for i, g in enumerate(gs):
+        p = GaussianRankOne(g=float(g), mean_m=np.sqrt(2.2), mean_n=np.sqrt(2.2))
+        points = solve_fixed_points(p, seeds=[(1.4, 2.+g*g)], quadrature_order=200)
+        positive = [pt for pt in points if pt.kappa[0] > 1e-3]
+        pt = max(positive, key=lambda pt: pt.kappa[0]) if positive else None
+        if pt is not None and pt.stable:
+            theory[i] = [pt.kappa[0], pt.variance, 0., 0.]
+            # A small positive temporal variance initiates chaotic continuation.
+            previous_chaotic_initial = (float(pt.kappa[0]), pt.variance+.01,
+                                        max(0., pt.variance-.01))
+        elif g > 1:
+            structured_onset = np.interp(g, chaotic_boundary[:,0], chaotic_boundary[:,1])
+            if 2.2 <= structured_onset:
+                # Above the chaotic pitchfork only the zero-mean branch is selected.
+                initial = (0., g*g, 0.)
+            else:
+                initial = previous_chaotic_initial
+            c = solve_chaotic(p, initial=initial, quadrature_order=200)
+            if 2.2 > structured_onset and c.kappa[0] < 1e-4:
+                raise RuntimeError(f"structured chaotic continuation lost its branch at g={g}")
+            theory[i] = [abs(c.kappa[0]), c.long_lag_variance, c.temporal_variance, 1.]
+            previous_chaotic_initial = (float(c.kappa[0]), c.variance, c.long_lag_variance)
+    return gs, theory
+
+
+def _input_theory():
+    amplitudes = np.linspace(0, 2., 41)
+    curves = np.full((3, len(amplitudes), 3), np.nan)
+    for kind in range(3):
+        for i, amplitude in enumerate(amplitudes):
+            mean = np.sqrt(3.5) if kind == 2 else 0.
+            # Input direction n's centered component; independent for kind zero.
+            p = GaussianRankOne(g=.8, mean_m=mean, mean_n=mean,
+                                var_input=amplitude**2,
+                                cov_n_input=amplitude if kind else 0.)
+            points = solve_fixed_points(p, seeds=[(-2., 4.), (0., 1.), (2., 4.)])
+            for point in points:
+                branch = 1 if not point.stable else 0 if point.kappa[0] < -1e-5 else 2
+                curves[kind, i, branch] = point.kappa[0] if abs(point.kappa[0]) > 1e-10 else 0.
+    return amplitudes, curves
+
+
+def _write(output, name, metadata, **arrays):
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(output, experiment=name, metadata=json.dumps(dict(size=size, trials=trials,
-        seed=seed, dt=dt, duration=duration, paper='Mastrogiuseppe & Ostojic (2018)', sampling='iid Gaussian')),
-        **arrays)
+    np.savez_compressed(output, experiment=name, metadata=json.dumps(metadata), **arrays)
     return output
+
+
+def run_dynamics_trial(name, output, *, size=512, seed=2018, trial_id=0, dt=.1, duration=40.):
+    """One resumable realization with shared patterns and independent bulk disorder."""
+    if size < 8 or trial_id < 0 or dt <= 0 or duration <= 0 or round(duration/dt) < 1:
+        raise ValueError("size>=8, trial_id>=0, dt>0, duration>=dt required")
+    steps = round(duration/dt)
+    # Pattern geometry is held fixed over the ensemble, as in the original runner.
+    rng = np.random.default_rng(seed)
+    bulk_rng = np.random.default_rng(np.random.SeedSequence([seed, trial_id, 1818]))
+    chi = bulk_rng.normal(size=(size, size)).astype(np.float32) / np.float32(np.sqrt(size))
+    if name == 'spontaneous':
+        from lowrank.spontaneous import simulate_spontaneous
+        conditions = np.array([[.7, .8], [.7, 2.2], [2., .8], [2., 2.2]])
+        base_m, base_n = rng.normal(size=(2, size))
+        m = base_m[None] + np.sqrt(conditions[:, 1, None])
+        n = base_n[None] + np.sqrt(conditions[:, 1, None])
+        times, traces, positive = simulate_spontaneous(m, n, chi, conditions[:, 0],
+            steps=steps, dt=dt, sample_every=max(1, round(.2/dt)))
+        positive = np.asarray(positive)
+        negative = positive * np.array([-1., 1., 1.])
+        arrays = dict(conditions=conditions, times=np.asarray(times), traces=np.asarray(traces),
+                      statistics=np.stack((positive, negative), axis=1))
+    elif name == 'inputs':
+        m, n, _ = rng.normal(size=(3, size))
+        strength = (((np.arange(steps)+.5)*dt >= duration*.25)
+                    & ((np.arange(steps)+.5)*dt < duration*.65))
+        result = _simulate(m, n, chi, .8, np.zeros(size), strength[:, None]*n[None], dt)
+        arrays = dict(times=np.asarray(result.times), states=np.asarray(result.states),
+                      basis=np.stack((n, m), axis=1), onset=duration*.25, offset=duration*.65)
+    else:
+        raise ValueError(f"unknown experiment {name}")
+    return _write(output, name, dict(size=size, seed=seed, trial_id=trial_id, dt=dt,
+        duration=duration, sampling='iid Gaussian; SeedSequence([seed, trial_id, 1818])'), **arrays)
+
+
+def aggregate_dynamics(inputs, output):
+    """Reduce completed shards; expensive theory curves are computed only once."""
+    sources = []
+    for path in inputs:
+        with np.load(path) as data:
+            sources.append({k: np.asarray(data[k]) for k in data.files})
+    if not sources:
+        raise ValueError("at least one dynamics trial is required")
+    sources.sort(key=lambda d: json.loads(str(d['metadata']))['trial_id'])
+    first = sources[0]
+    name = str(first['experiment'])
+    meta = json.loads(str(first['metadata']))
+    ids = []
+    for source in sources:
+        other = json.loads(str(source['metadata']))
+        if str(source['experiment']) != name or any(other[k] != meta[k] for k in ('size', 'seed', 'dt', 'duration')):
+            raise ValueError("incompatible dynamics trials")
+        ids.append(other['trial_id'])
+    if len(set(ids)) != len(ids):
+        raise ValueError("duplicate dynamics trial IDs")
+    meta.pop('trial_id')
+    meta.update(trials=len(sources), trial_ids=ids, paper='Mastrogiuseppe & Ostojic (2018)')
+    if name == 'spontaneous':
+        static, chaotic = _phase_boundaries()
+        gs, theory = _spontaneous_theory(chaotic)
+        statistics = np.stack([s['statistics'] for s in sources], axis=1)
+        arrays = dict(conditions=first['conditions'], times=first['times'], traces=first['traces'],
+            statistics=statistics.reshape((4, -1, 3)), static_boundary=static,
+            chaotic_boundary=chaotic, gs=gs, theory=theory)
+    elif name == 'inputs':
+        average = np.zeros_like(first['states'], dtype=np.float64)
+        for source in sources:
+            average += source['states']/len(sources)
+        basis = first['basis']
+        coordinates = average @ np.linalg.pinv(basis).T
+        centered = average-average.mean(axis=0)
+        zscore = centered/np.maximum(centered.std(axis=0), 1e-10)
+        _, singular, vt = np.linalg.svd(zscore, full_matrices=False)
+        amplitudes, curves = _input_theory()
+        arrays = dict(times=first['times'], traces=average[:, :6], coordinates=coordinates,
+            explained=singular[:6]**2/(singular**2).sum(),
+            pc_alignment=np.abs(vt[:2] @ basis)/np.linalg.norm(basis, axis=0),
+            amplitudes=amplitudes, curves=curves, onset=first['onset'], offset=first['offset'])
+    else:
+        raise ValueError(f"unknown experiment {name}")
+    return _write(output, name, meta, **arrays)
+
+
+def run_experiment(name, output, *, size=512, trials=4, seed=2018, dt=.1, duration=40.):
+    """Convenience runner; Snakemake uses persistent per-trial checkpoints."""
+    from tempfile import TemporaryDirectory
+    if trials < 1:
+        raise ValueError("trials must be positive")
+    with TemporaryDirectory() as folder:
+        inputs = [run_dynamics_trial(name, Path(folder)/f'{i}.npz', size=size,
+                  seed=seed, trial_id=i, dt=dt, duration=duration) for i in range(trials)]
+        return aggregate_dynamics(inputs, output)
 
 
 def plot_experiment(source, output):
