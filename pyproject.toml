@@ -1,7 +1,7 @@
 [project]
 name = "lowrank"
 version = "0.1.0"
-description = "Add your description here"
+description = "Reproducing low-rank recurrent network dynamics and computations"
 readme = "README.md"
 authors = [{ name = "Simon Walker", email = "simon@simonwalker.tech" }]
 requires-python = ">=3.13"
@@ -9,20 +9,13 @@ dependencies = [
   "einx>=0.4.3",
   "equinox>=0.13.8",
   "jax>=0.12.0.1",
-  "jax[cuda]>=0.12.0.1 ; sys_platform == 'linux'",
   "jaxtyping>=0.3.11",
   "matplotlib>=3.11.2",
   "numpy>=2.5.4",
-  "optax>=0.2.8",
-  "optuna>=5.0.0",
-  "plotext>=6.1.0",
   "pytest>=9.1.1",
-  "scikit-learn>=1.9.1",
   "scipy>=1.18.1",
-  "scipy-stubs>=1.18.1.1",
-  "seaborn>=0.13.2",
-  "statistics>=1.0.3.5",
-  "tqdm>=4.70.1",
+  "snakemake>=9.0",
+  "pyyaml>=6.0",
 ]
 
 [project.scripts]

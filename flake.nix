@@ -18,7 +18,6 @@
           packages = with pkgs; [
             uv
             just
-            snakemake
           ];
         };
       }

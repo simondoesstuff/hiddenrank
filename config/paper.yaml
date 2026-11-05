@@ -1,0 +1,14 @@
+# Figure-specific N and ensemble counts from STAR Methods, pp. e27-e28.
+profile: paper
+seed: 2018
+size: 5000
+trials: 15
+dt: 0.1
+duration: 100.0
+experiments:
+  spontaneous: {size: 5000, trials: 15, duration: 800.0}
+  inputs: {size: 3500, trials: 20}
+  go_nogo: {size: 2500, trials: 20}
+  detection: {size: 2500, trials: 100}
+  context: {size: 7500, trials: 50}
+  integration: {size: 7500, trials: 50}

@@ -1,0 +1,56 @@
+"""Reproduce key panels of Mastrogiuseppe & Ostojic (2018)."""
+
+configfile: "config/preview.yaml"
+
+FIGURES = {
+    "figure1_spontaneous": "spontaneous",
+    "figure2_inputs": "inputs",
+    "figure3_go_nogo": "go_nogo",
+    "figure4_detection": "detection",
+    "figure5_context": "context",
+    "figure6_integration": "integration",
+}
+PROFILE = config["profile"]
+ROOT = f"data/{PROFILE}"
+
+def setting(wildcards, name):
+    experiment = FIGURES[wildcards.figure]
+    return config.get("experiments", {}).get(experiment, {}).get(name, config[name])
+
+wildcard_constraints:
+    figure="|".join(FIGURES)
+
+rule all:
+    input:
+        expand(ROOT + "/figures/{figure}.{extension}", figure=FIGURES, extension=["png", "svg"])
+
+rule simulate:
+    input:
+        sources=lambda wc: sorted(str(p) for p in __import__("pathlib").Path("src/lowrank").glob("*.py")),
+    output:
+        ROOT + "/simulations/{figure}.npz"
+    params:
+        experiment=lambda wc: FIGURES[wc.figure],
+        size=lambda wc: setting(wc, "size"),
+        trials=lambda wc: setting(wc, "trials"),
+        seed=config["seed"],
+        dt=config["dt"],
+        duration=lambda wc: setting(wc, "duration"),
+    threads: 1
+    resources:
+        mem_mb=lambda wc: max(512, int(setting(wc, "size") ** 2 * 8 / 1e6 + 512))
+    shell:
+        "PYTHONPATH='' MPLBACKEND=Agg OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 "
+        "uv run python -m lowrank run {params.experiment} {output:q} "
+        "--size {params.size} --trials {params.trials} --seed {params.seed} "
+        "--dt {params.dt} --duration {params.duration}"
+
+rule plot:
+    input:
+        ROOT + "/simulations/{figure}.npz"
+    output:
+        ROOT + "/figures/{figure}.{extension}"
+    wildcard_constraints:
+        extension="png|svg"
+    shell:
+        "PYTHONPATH='' MPLBACKEND=Agg uv run python -m lowrank plot {input:q} {output:q}"
