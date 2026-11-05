@@ -16,6 +16,7 @@ def main() -> None:
     run.add_argument("--seed", type=int, default=2018)
     run.add_argument("--dt", type=float, default=0.1)
     run.add_argument("--duration", type=float, default=40.)
+    run.add_argument("--orthogonal-patterns", action="store_true", help="Enforce limiting pattern covariance in small task demonstrations")
     plot = sub.add_parser("plot", help="Render a saved dataset")
     plot.add_argument("input", type=Path)
     plot.add_argument("output", type=Path)
@@ -25,8 +26,9 @@ def main() -> None:
             from lowrank.dynamics_figures import run_experiment
         else:
             from lowrank.experiments import run_experiment
+        kwargs = {} if args.experiment in {"spontaneous", "inputs"} else {"orthogonal": args.orthogonal_patterns}
         run_experiment(args.experiment, args.output, size=args.size, trials=args.trials,
-                       seed=args.seed, dt=args.dt, duration=args.duration)
+                       seed=args.seed, dt=args.dt, duration=args.duration, **kwargs)
     else:
         import numpy as np
         with np.load(args.input) as data:

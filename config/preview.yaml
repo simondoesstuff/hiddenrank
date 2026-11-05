@@ -1,7 +1,11 @@
 # Small local recreation; finite-size effects are substantial, especially Figs 5-6.
 profile: preview
-seed: 2018
-size: 512
-trials: 4
+seed: 0
+size: 1024
+trials: 2
 dt: 0.1
-duration: 40.0
+duration: 20.0
+orthogonal: true
+experiments:
+  spontaneous: {size: 512, trials: 2, duration: 120.0}
+  inputs: {size: 512, trials: 2, duration: 40.0}

@@ -4,7 +4,8 @@ seed: 2018
 size: 5000
 trials: 15
 dt: 0.1
-duration: 100.0
+duration: 20.0
+orthogonal: false
 experiments:
   spontaneous: {size: 5000, trials: 15, duration: 800.0}
   inputs: {size: 3500, trials: 20}

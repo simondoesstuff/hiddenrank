@@ -22,11 +22,13 @@ wildcard_constraints:
 
 rule all:
     input:
-        expand(ROOT + "/figures/{figure}.{extension}", figure=FIGURES, extension=["png", "svg"])
+        ROOT + "/index.html"
 
 rule simulate:
     input:
-        sources=lambda wc: sorted(str(p) for p in __import__("pathlib").Path("src/lowrank").glob("*.py")),
+        sources=lambda wc: ["src/lowrank/__init__.py", "src/lowrank/network.py"] +
+            (["src/lowrank/dynamics_figures.py", "src/lowrank/meanfield.py"] if FIGURES[wc.figure] in {"spontaneous", "inputs"}
+             else ["src/lowrank/tasks.py", "src/lowrank/experiments.py"]),
     output:
         ROOT + "/simulations/{figure}.npz"
     params:
@@ -36,6 +38,7 @@ rule simulate:
         seed=config["seed"],
         dt=config["dt"],
         duration=lambda wc: setting(wc, "duration"),
+        sampling="--orthogonal-patterns" if config.get("orthogonal", False) else "",
     threads: 1
     resources:
         mem_mb=lambda wc: max(512, int(setting(wc, "size") ** 2 * 8 / 1e6 + 512))
@@ -43,14 +46,25 @@ rule simulate:
         "PYTHONPATH='' MPLBACKEND=Agg OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 "
         "uv run python -m lowrank run {params.experiment} {output:q} "
         "--size {params.size} --trials {params.trials} --seed {params.seed} "
-        "--dt {params.dt} --duration {params.duration}"
+        "--dt {params.dt} --duration {params.duration} {params.sampling}"
 
 rule plot:
     input:
-        ROOT + "/simulations/{figure}.npz"
+        data=ROOT + "/simulations/{figure}.npz",
+        source=lambda wc: "src/lowrank/dynamics_figures.py" if FIGURES[wc.figure] in {"spontaneous", "inputs"} else "src/lowrank/plotting.py",
     output:
         ROOT + "/figures/{figure}.{extension}"
     wildcard_constraints:
         extension="png|svg"
     shell:
-        "PYTHONPATH='' MPLBACKEND=Agg uv run python -m lowrank plot {input:q} {output:q}"
+        "PYTHONPATH='' MPLBACKEND=Agg uv run python -m lowrank plot {input.data:q} {output:q}"
+
+
+rule gallery:
+    input:
+        figures=expand(ROOT + "/figures/{figure}.{extension}", figure=FIGURES, extension=["png", "svg"]),
+        data=expand(ROOT + "/simulations/{figure}.npz", figure=FIGURES),
+    output:
+        ROOT + "/index.html"
+    script:
+        "scripts/gallery.py"
