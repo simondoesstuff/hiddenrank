@@ -10,6 +10,7 @@ experiments:
   spontaneous: {size: 5000, trials: 15, duration: 800.0}
   inputs: {size: 3500, trials: 20}
   go_nogo: {size: 2500, trials: 20}
-  detection: {size: 2500, trials: 100}
-  context: {size: 7500, trials: 50}
-  integration: {size: 7500, trials: 50}
+  detection: {size: 2500, trials: 100, duration: 22.0}
+  context: {size: 7500, trials: 50, duration: 85.0}
+  integration: {size: 7500, trials: 50, duration: 85.0}
+architecture: supplement

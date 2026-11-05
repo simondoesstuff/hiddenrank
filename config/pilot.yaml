@@ -1,0 +1,13 @@
+# Paper populations, one representative iid realization per contextual task.
+profile: pilot
+seed: 2018
+size: 7500
+trials: 1
+dt: 0.1
+duration: 85.0
+orthogonal: false
+architecture: supplement
+figures: [figure5_context, figure6_integration]
+experiments:
+  context: {duration: 85.0}
+  integration: {condition_set: representative}

@@ -140,5 +140,4 @@ def plot_detection_theory(source: str | Path, output: str | Path) -> None:
         destination = Path(output)
         destination.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(destination, dpi=180)
-        fig.savefig(destination.with_suffix(".svg"))
         plt.close(fig)

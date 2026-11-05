@@ -1,20 +1,28 @@
 # Task recreations
 
-| Run | Paper architecture | Recreated panels |
+| Run | Recipe | Recreated panels |
 | --- | --- | --- |
-| `go_nogo` | Eq. 145, S=2 | Go/Nogo traces, state projections, Eq. 149 mixture generalization |
-| `detection` | Eq. 151, S=1.2, rm=rn=2 | Noisy traces, trajectories, psychometric curve |
-| `context` | Eq. 155, rm=3, rn=1.6, bm=.6, bn=1 | Context-dependent traces, trajectories, response bars |
-| `integration` | Eq. 155, rn=1.38 | Noisy traces, context-dependent response heatmaps |
-| `ring` | Eq. 156, overlap=1.8, g=0 | Relaxation toward a rank-two ring |
+| `go_nogo` | Eq. 145, S=2 | Readout, population trajectory, mixture generalization |
+| `detection` | Eq. 151, rm=rn=2 | Noisy detection, psychometric response |
+| `context` | Released Fig. 5 recipe, m-context=1.6, n-context=3 | Contextual output and trajectories |
+| `integration` | Same convention, m-context=1.38, n-context=3 | Outputs, population/scaffold trajectories, response maps |
+| `ring` | Eq. 156, overlap=1.8 | Relaxation toward a rank-two ring |
+| `detection-theory` | Stationary fold and resting collective eigenvalue | Fig. 4F threshold–timescale curve |
 
-- Dynamics use the full finite recurrent network, including quenched Gaussian connectivity (g=.8 except ring).
-- Seeds, sizes, time step and repetitions are stored with compressed NPZ measurements. Plots never filter incorrect trials.
-- Default experiment patterns use the paper's iid Gaussian sampling. Small networks can have substantial finite-size errors. Optional `orthogonal=True` in `run_experiment` centers and orthogonalizes Gaussian draws, enforcing limiting covariance for small demonstrations; metadata records this choice.
-- Noise is independent per integration step: sigma=.4 for detection and .3 for integration. Changing dt changes its integrated power; these are discrete noisy-input recreations, not a continuous-time diffusion limit.
-- Negative initial states relax for 15 time constants before stimulation. Stimuli last 20 by default; recovery lasts 10. Context is present throughout. Detection includes unit-variance quenched orthogonal input.
-- Go decisions use half the **measured** positive-minus-negative resting readout, rather than the paper's theoretical upper-state prediction. Both attractors are simulated independently. Go/Nogo has no positive spontaneous attractor, so its decision reference is the separately simulated driven Go state. Raw endpoints and reference states are saved for reanalysis.
-- Bands/error bars on readout plots show SEM over realizations; detection probabilities show binomial standard errors. Small trial counts give coarse probability estimates.
-- Paper population sizes: Fig. 3 N=2500; Fig. 4 N=2500; Fig. 5 trajectories N=3000; Fig. 6 trajectories N=4000. Fig. 5/6 performance uses N=7500 and 50 realizations. Reduced workflow profiles target qualitative panel recreation, not published error bars.
+## Protocol
 
-The recreated panels omit PCA/connectivity-correlation analyses, theoretical trajectory overlays and the Fig. 4F bifurcation/timescale curve. Ring symmetry is exact in the population limit; finite networks can select preferred angles.
+- Contextual tasks default to `architecture=supplement`. `architecture=paper` retains the literal printed coefficients, which produce different stimulus gating. See [source discrepancy](protocol.md).
+- White stimulus noise uses **sigma √dt** increments: Euler-Maruyama, sigma=.4 for detection and .3 for integration. Deterministic tasks use RK4.
+- A 10-unit free transient is discarded. Detection has 7 baseline + 22 stimulus units; contextual tasks have 15 baseline + 85 stimulus units. Fig. 6 timing is reconstructed from the plotted 0–100 axis, not recovered source code.
+- Detection's independent quenched input starts with the stimulus. Context begins after the free transient and persists through the trial.
+- Decisions compare offset endpoints with half the **theoretical** upper resting readout, offset by the same baseline. Go/Nogo instead uses the theoretical driven Go state. The exact reference operating point is not specified in the released classifier; ours is explicit.
+- iid patterns are available at published N. Preview orthogonalization enforces limiting covariances in small networks; metadata records it.
+- No failed trials are filtered. Bands show realization SEM; psychometric errors show binomial standard errors.
+
+## Saved observables
+
+NPZ archives contain readouts, input/readout projections, recurrent overlaps, scaffold coordinates, four single-unit traces, endpoints, decisions, theoretical references, and protocol metadata. Dense matrices and full population trajectories are not stored.
+
+Each random network gets a reproducible realization ID. Patterns stay fixed while connectivity and stimulus noise vary. Trial checkpoints can be aggregated or extended without repeating completed simulations.
+
+PCA/connectivity-correlation panels and theoretical transient overlays remain outside the current recreations. The scaffold circle is a population-limit reference, not a fitted attractor for the full contextual task.

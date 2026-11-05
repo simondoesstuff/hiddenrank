@@ -8,7 +8,7 @@ Supplementary code inspected at commit
 | --- | --- | --- | --- |
 | Discarded free transient | 10 | 10 | Not specified |
 | Resting/context period | 7 | 15 | Not specified |
-| Stimulus duration | 22 | 85 | Not specified |
+| Stimulus duration | 22 | 85 | 85 reconstructed from displayed axis |
 | Sampling step | 0.1 | nominal 0.1 | Not specified |
 | Stimulus noise intensity | 0.4 | 0 | 0.3 |
 | Context amplitudes | None | (0.08, −0.14), reversed | (0.08, −0.18), reversed |
@@ -17,7 +17,7 @@ Supplementary code inspected at commit
   Initial state is `−m−n`. Independent quenched input `h` has unit variance and starts with the stimulus; it is absent at rest.
 - Figure 5: [simulation](https://github.com/fmastrogiuseppe/LowRank/blob/35211877f641cd16ec239dc07330478d5b118175/5_CtxDiscriminationTask/main_simulate.py), [integrator](https://github.com/fmastrogiuseppe/LowRank/blob/35211877f641cd16ec239dc07330478d5b118175/5_CtxDiscriminationTask/fct_simulations.py).
   Initial state is `−m1−m2−n1−n2`. Context begins after the free transient and continues through the stimulus. Integration uses `odeint`; the reported sampling grid uses `linspace` with nominal step 0.1.
-- The supplement contains no Figure 6 noisy rank-two script. Applying the Figure 4 noise convention or Figure 5 timing to Figure 6 is an explicit reconstruction choice.
+- The supplement contains no Figure 6 noisy rank-two script. Its plotted axis spans 0–100 with stimulation after about 15. We reconstruct 15 baseline + 85 stimulus units and apply the Figure 4 noise convention; these are explicit reconstruction choices.
 
 ## Noise and geometry
 

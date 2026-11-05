@@ -7,4 +7,4 @@
 
 This distinction gives resting critical strength `rm*rn=1`, while bistability **during the stimulus** requires a larger overlap (approximately 1.784). Thus the threshold is zero over an initial interval even though resting relaxation already diverges at strength one. At `rm=2`, the predicted threshold is approximately `0.55`, close to the upstream hard-coded `0.54`. The paper's Figure 4F calculation script is absent from the public code; this reconstruction follows its published equations and the available stimulus/background protocol explicitly.
 
-`run_detection_theory(path)` writes the curve and both critical values to NPZ; `plot_detection_theory(source, png)` writes PNG and SVG. The plot clips the vertical timescale axis at 50 so the finite part remains legible; all computed timescales are preserved in NPZ.
+`run_detection_theory(path)` writes the curve and both critical values to NPZ; `plot_detection_theory(source, output)` writes the requested format; Snakemake requests both PNG and SVG. The plot clips the vertical timescale axis at 50 so the finite part remains legible; all computed timescales are preserved in NPZ.

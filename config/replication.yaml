@@ -1,0 +1,12 @@
+# Expanded iid ensembles at published population sizes for the contextual figures.
+profile: replication
+seed: 2018
+size: 7500
+trials: 10
+dt: 0.1
+duration: 85.0
+orthogonal: false
+architecture: supplement
+condition_set: full
+figures: [figure5_context, figure6_integration]
+# Fig6 timing reconstructed from its displayed 0-100 axis: 15 baseline + 85 stimulus.

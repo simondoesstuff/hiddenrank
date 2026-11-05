@@ -11,13 +11,17 @@ figures = [
     ('figure3_go_nogo', 'Go / Nogo', 'Selective readout, population trajectory, and generalization to input mixtures.'),
     ('figure4_detection', 'Noisy detection', 'Bistable switching, state trajectories, and a psychometric curve.'),
     ('figure5_context', 'Context-dependent discrimination', 'The same readout changes stimulus preference with the context.'),
-    ('figure6_integration', 'Context-dependent integration', 'Noisy readouts and response maps for both contextual cues.'),
+    ('figure6_integration', 'Context-dependent integration', 'Noisy readouts, population/recurrent trajectories, and context-dependent response maps.'),
+    ('figure4_threshold_timescale', 'Detection threshold and timescale (Figure 4F)', 'Stationary switching threshold and resting collective relaxation near the bifurcation.'),
 ]
 sections = []
 for stem, title, caption in figures:
+    if stem not in list(snakemake.params.selected) + ["figure4_threshold_timescale"]:
+        continue
     with np.load(root / 'simulations' / f'{stem}.npz') as data:
-        meta = json.loads(str(data['metadata']))
-    details = f"N={meta['size']}; {meta['trials']} realizations; seed={meta['seed']}; dt={meta['dt']}"
+        meta = json.loads(str(data['metadata'])) if 'metadata' in data else None
+    details = (f"N={meta['size']}; {meta['trials']} realizations; seed={meta['seed']}; dt={meta['dt']}"
+               + f"; architecture={meta.get('architecture', 'paper')}" if meta else "Gaussian mean-field theory")
     sections.append(f'<section><h2>{html.escape(title)}</h2><p>{html.escape(caption)}</p>'
                     f'<a href="figures/{stem}.svg"><img src="figures/{stem}.png" alt="{html.escape(title)}"></a>'
                     f'<p class="meta">{details} · <a href="figures/{stem}.svg">SVG</a> · '
@@ -27,5 +31,5 @@ root.mkdir(parents=True, exist_ok=True)
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Low-rank RNN figure recreations</title>
 <style>body{font:16px system-ui,sans-serif;max-width:1250px;margin:40px auto;padding:0 24px;color:#23313b;background:#f5f7f8}h1{font-size:30px}h2{font-size:21px}p{line-height:1.5}section{background:white;padding:20px;margin:24px 0;border-radius:10px}img{display:block;width:100%;height:auto}a{color:#14728a}.meta{font-size:13px;color:#57636b}</style>
 <h1>Low-rank recurrent networks</h1><p>Key-panel recreations of Mastrogiuseppe &amp; Ostojic (2018), <i>Linking Connectivity, Dynamics, and Computations in Low-Rank Recurrent Neural Networks</i>.</p>
-<p>Preview runs use smaller networks and explicitly labeled orthogonalized patterns for computational tasks. These reproduce the main qualitative panels; they are not pixel-identical copies or the published ensemble statistics. Decision thresholds use simulated resting attractors. Click a figure for its scalable version.</p>
+<p>Preview runs use smaller networks and explicitly labeled orthogonalized patterns for computational tasks. These reproduce the main qualitative panels; they are not pixel-identical copies or the published ensemble statistics. Task decision thresholds use theoretical stationary references. Contextual figures default to the released supplementary coefficient ordering; the paper-literal ordering is available explicitly. White stimulus noise uses sigma times sqrt(dt) increments. All trials, including errors, are retained. Click a figure for its scalable version.</p>
 ''' + ''.join(sections) + '</html>')
