@@ -36,7 +36,8 @@ def plot_experiment(source: str | Path, output: str | Path) -> Path:
             ax.set(xlabel=r"$\kappa_1$", ylabel=r"$\kappa_2$", title="Rank-two ring: relaxation from different angles")
             ax.set_aspect("equal", adjustable="datalim")
         else:
-            fig, axes = plt.subplots(1, 3, figsize=(12, 4.2), layout="constrained")
+            fig, axes = plt.subplots(1, 3, figsize=(12, 4.2))
+            fig.subplots_adjust(left=.075, right=.985, bottom=.19, top=.76, wspace=.44)
             times = data["times"]
             start, end = meta["baseline_duration"], meta["stimulus_end"]
             traces = data["traces"]
