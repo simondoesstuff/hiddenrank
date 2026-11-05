@@ -107,6 +107,10 @@ def run_experiment(name: str, output: str | Path, *, size: int = 256,
             trial_end.append(readout[endpoint_index] - offset)
             # Independently measure positive resting attractor at the same context.
             rest_inputs = jnp.asarray(coefficients[:baseline_steps] @ task.directions.T)
+            if name == "go_nogo":
+                # This architecture has no positive spontaneous attractor.
+                # Calibrate its decision against a driven Go reference instead.
+                rest_inputs = jnp.broadcast_to(jnp.asarray(task.directions[:, 0]), (baseline_steps, size))
             upper = simulate(network, jnp.asarray(task.m.sum(axis=1), dtype=jnp.float32),
                              rest_inputs, dt=dt, sample_every=baseline_steps)
             trial_upper.append(float(np.tanh(np.asarray(upper.states[-1])) @ task.readout / size - offset))
@@ -126,7 +130,8 @@ def run_experiment(name: str, output: str | Path, *, size: int = 256,
     metadata = dict(name=name, size=size, trials=trials, seed=seed, dt=dt,
                     duration=duration, sigma=sigma, g=task.g,
                     orthogonal_patterns=orthogonal,
-                    decision_threshold="half measured upper-minus-baseline resting readout",
+                    decision_threshold=("half measured driven-Go-minus-baseline readout" if name == "go_nogo"
+                                        else "half measured upper-minus-baseline resting readout"),
                     baseline_duration=baseline_steps * dt,
                     stimulus_end=(baseline_steps + stimulus_steps) * dt)
     np.savez_compressed(path, experiment=name, times=times, traces=np.asarray(traces),

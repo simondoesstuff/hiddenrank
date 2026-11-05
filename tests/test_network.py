@@ -18,10 +18,10 @@ def test_factored_connectivity_equals_dense(rank, gain):
 
 
 def test_gaussian_construction_moments_and_reproducibility():
-    kwargs = dict(size=20_000, rank=2, mean_m=1.2, mean_n=-0.5,
+    kwargs = dict(mean_m=1.2, mean_n=-0.5,
                   std_m=0.8, std_n=1.5, correlation=0.6)
-    network = gaussian_network(jax.random.key(7), **kwargs)
-    repeated = gaussian_network(jax.random.key(7), **kwargs)
+    network = gaussian_network(jax.random.key(7), 20_000, 2, **kwargs)
+    repeated = gaussian_network(jax.random.key(7), 20_000, 2, **kwargs)
     np.testing.assert_array_equal(network.n, repeated.n)
     assert network.random_matrix is None
     assert abs(float(jnp.mean(network.m)) - 1.2) < 0.02

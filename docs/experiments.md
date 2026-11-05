@@ -13,7 +13,7 @@
 - Default experiment patterns use the paper's iid Gaussian sampling. Small networks can have substantial finite-size errors. Optional `orthogonal=True` in `run_experiment` centers and orthogonalizes Gaussian draws, enforcing limiting covariance for small demonstrations; metadata records this choice.
 - Noise is independent per integration step: sigma=.4 for detection and .3 for integration. Changing dt changes its integrated power; these are discrete noisy-input recreations, not a continuous-time diffusion limit.
 - Negative initial states relax for 15 time constants before stimulation. Stimuli last 20 by default; recovery lasts 10. Context is present throughout. Detection includes unit-variance quenched orthogonal input.
-- Go decisions use half the **measured** positive-minus-negative resting readout, rather than the paper's theoretical upper-state prediction. Both attractors are simulated independently. Raw endpoints and upper states are saved for reanalysis.
+- Go decisions use half the **measured** positive-minus-negative resting readout, rather than the paper's theoretical upper-state prediction. Both attractors are simulated independently. Go/Nogo has no positive spontaneous attractor, so its decision reference is the separately simulated driven Go state. Raw endpoints and reference states are saved for reanalysis.
 - Bands/error bars on readout plots show SEM over realizations; detection probabilities show binomial standard errors. Small trial counts give coarse probability estimates.
 - Paper population sizes: Fig. 3 N=2500; Fig. 4 N=2500; Fig. 5 trajectories N=3000; Fig. 6 trajectories N=4000. Fig. 5/6 performance uses N=7500 and 50 realizations. Reduced workflow profiles target qualitative panel recreation, not published error bars.
 

@@ -76,7 +76,9 @@ def plot_experiment(source: str | Path, output: str | Path) -> Path:
                             ylabel="Projection on input B" if name == "context" else "Projection on recurrent m" if name == "detection" else "Projection on readout w",
                             title="Population state trajectory")
                 if name == "context":
-                    axes[1].set_zlabel("Projection on readout w")
+                    axes[1].set_xlabel(r"$I_A$ projection", labelpad=2)
+                    axes[1].set_ylabel(r"$I_B$ projection", labelpad=2)
+                    axes[1].set_zlabel(r"$w$ projection", labelpad=4)
                     axes[1].view_init(elev=24, azim=-54)
                     axes[1].tick_params(labelsize=8)
                 if name == "go_nogo":
