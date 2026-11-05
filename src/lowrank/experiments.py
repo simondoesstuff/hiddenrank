@@ -62,7 +62,8 @@ def run_experiment(name: str, output: str | Path, *, size: int = 256,
     traces, projections, endpoints, baselines, upper_states = [], [], [], [], []
     # The shape stays constant across conditions, allowing one JIT compilation.
     for trial in range(trials):
-        chi = rng.normal(size=(size, size)).astype(np.float32) / np.sqrt(size)
+        chi = rng.normal(size=(size, size)).astype(np.float32)
+        chi *= np.float32(1 / np.sqrt(size))
         trial_traces, trial_proj, trial_end, trial_baseline, trial_upper = [], [], [], [], []
         for condition, (ab, context) in enumerate(zip(stimulus, contexts, strict=True)):
             n = task.n.copy()
