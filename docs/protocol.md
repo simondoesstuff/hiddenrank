@@ -28,8 +28,10 @@ The sampled stimulus amplitude SD is not `sigma` per integration step.
 `protocol.task_geometry` implements paper Eqs. 151/155, using iid population covariances.
 Two source discrepancies are resolved from the architecture:
 
-- The Figure 5 script assigns context coefficient **1.6 to m and 3 to n**; the paper assigns **3 to m and 1.6 to n**. We use the paper values. Their overlap agrees, but activity variance differs.
+- The Figure 5 script assigns context coefficient **1.6 to m and 3 to n**; the paper assigns **3 to m and 1.6 to n**. Their overlap agrees, but activity variance and cue overlap differ. Default `architecture="supplement"` reproduces the released script, and uses the analogous 1.38/3 swap for Figure 6. `architecture="paper"` retains literal paper parameters.
 - Because the same `w` enters both `m` vectors, its contribution to activation variance is **bm²(k1+k2)²**. The printed Eq. 160 omits its cross term. Eq. 155 and the readout Eq. 158 require it.
+
+For Figure 5 reproduction, the source architecture matters: the literal paper architecture loses its negative branch before either unit-strength stimulus, giving Go for both. Stationary continuation locates the preferred/irrelevant folds near 0.44/0.68 for paper parameters and 0.68/1.08 for source parameters (context A; zero irrelevant stimulus; step 0.01). The source architecture therefore preserves the Nogo response to the irrelevant unit-strength input. This diagnosis selects a figure recipe; it is not an empirical test of the paper's mathematics.
 
 ## Decision reference
 

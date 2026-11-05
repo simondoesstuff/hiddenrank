@@ -13,7 +13,7 @@ def test_rank_two_geometry_keeps_shared_readout_cross_term():
     kappa = np.array([.7, -.2])
     a, b = .6, .1
     cue = np.array([.08, -.18])
-    geometry = task_geometry("integration", stimulus=(a, b), context=0)
+    geometry = task_geometry("integration", stimulus=(a, b), context=0, architecture="paper")
     _, variance, n_cov = geometry.statistics(kappa)
     # Eq. 155 decomposed into independent yA,yB,w,IA,IB,ctxA,ctxB.
     expected = (1.2**2 * (kappa @ kappa) + .6**2 * kappa.sum()**2
@@ -36,7 +36,7 @@ def test_theoretical_reference_is_context_symmetric_stable_upper_branch(name):
     first = theoretical_upper_readout(name, context=0)
     second = theoretical_upper_readout(name, context=1)
     assert first == pytest.approx(second, abs=1e-9)
-    assert 0 < first < .3
+    assert 0 < first < .4
     geometry = task_geometry(name, context=0)
     points = solve_fixed_points(geometry,
                                 seeds=[(np.array([2., 2.]), 40.),
@@ -57,3 +57,25 @@ def test_go_nogo_reference_is_driven_and_cues_are_validated():
         context_strengths("integration", 2)
     with pytest.raises(ValueError):
         task_geometry("unknown")
+
+
+def test_supplement_architecture_is_explicit_and_restores_nogo_branch():
+    # Source/paper m/n coefficient reversal changes variance and input overlap,
+    # while leaving the recurrent n-m overlap matrix unchanged.
+    paper = task_geometry("context", stimulus=(0., 1.), context=0, architecture="paper")
+    source = task_geometry("context", stimulus=(0., 1.), context=0,
+                           architecture="supplement")
+    np.testing.assert_array_equal(paper.cov_nm, source.cov_nm)
+    source_points = solve_fixed_points(source, seeds=[(np.array([-2., -1.]), 20.)],
+                                       quadrature_order=400)
+    assert len(source_points) == 1 and source_points[0].stable
+    assert source_points[0].kappa.sum() < 0
+    paper_points = solve_fixed_points(paper,
+                                      seeds=[(np.array([a, b]), 20.)
+                                             for a in (-2., 0., 2.) for b in (-2., 0., 2.)],
+                                      quadrature_order=400)
+    assert any(point.stable for point in paper_points)
+    assert all(point.kappa.sum() > 0 for point in paper_points if point.stable)
+    assert theoretical_upper_readout("context", context=0, architecture="supplement") > .29
+    with pytest.raises(ValueError):
+        task_geometry("context", architecture="unknown")

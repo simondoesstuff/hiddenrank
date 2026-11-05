@@ -21,15 +21,29 @@ def context_strengths(name: str, context: int) -> tuple[float, float]:
     return strengths if context == 0 else (strengths[1], strengths[0])
 
 
+def context_coefficients(name: str, architecture: str = "supplement") -> tuple[float, float]:
+    """Context coefficients (rm, rn): source recipe or literal paper Eq. 155."""
+    if name not in {"context", "integration"}:
+        raise ValueError("require context or integration task")
+    if architecture not in {"paper", "supplement"}:
+        raise ValueError("architecture must be paper or supplement")
+    weaker = 1.38 if name == "integration" else 1.6
+    return (weaker, 3.) if architecture == "supplement" else (3., weaker)
+
+
 def task_geometry(name: str, *, stimulus: tuple[float, float] = (0., 0.),
                   context: int | None = None, background: float = 0.,
-                  modulation: float = 0.) -> GaussianGeometry:
+                  modulation: float = 0., architecture: str = "supplement") -> GaussianGeometry:
     """Exact centered covariances from Eqs. 145, 151 and 155.
 
     ``background`` is the standard deviation of independent quenched input.
     Temporal input noise is deliberately absent from stationary equations.
     ``context=None`` means no cue; stimulus strengths multiply IA and IB.
+    ``architecture='supplement'`` swaps contextual m/n coefficients to follow
+    the released Figure 5 script; Figure 6 applies the analogous swap.
     """
+    if architecture not in {"paper", "supplement"}:
+        raise ValueError("architecture must be paper or supplement")
     a, b = stimulus
     if name == "go_nogo":
         return GaussianGeometry(.8, np.zeros(1), np.zeros(1),
@@ -45,7 +59,8 @@ def task_geometry(name: str, *, stimulus: tuple[float, float] = (0., 0.),
     if name not in {"context", "integration"}:
         raise ValueError(f"no Gaussian task geometry for {name!r}")
     cue = np.zeros(2) if context is None else np.asarray(context_strengths(name, context))
-    rm, rn, bm, bn = 3., 1.38 if name == "integration" else 1.6, .6, 1.
+    rm, rn = context_coefficients(name, architecture)
+    bm, bn = .6, 1.
     # The same w enters both columns: its covariance is a full ones matrix.
     return GaussianGeometry(
         .8, np.zeros(2), np.zeros(2),
@@ -72,6 +87,7 @@ def theoretical_readout(name: str, point: FixedPoint, *, quadrature_order: int =
 def theoretical_upper_readout(name: str, *, context: int | None = None,
                               stimulus: tuple[float, float] = (0., 0.),
                               background: float = 0.,
+                              architecture: str = "supplement",
                               quadrature_order: int = 400) -> float:
     """Largest stable predicted raw readout at the specified operating point.
 
@@ -82,7 +98,7 @@ def theoretical_upper_readout(name: str, *, context: int | None = None,
     if name == "go_nogo" and stimulus == (0., 0.):
         stimulus = (1., 0.)
     geometry = task_geometry(name, stimulus=stimulus, context=context,
-                             background=background)
+                             background=background, architecture=architecture)
     seeds: list[tuple[float | Array, float]] = [
         (np.full(geometry.rank, sign * amplitude), variance)
         for sign in (-1, 1) for amplitude, variance in ((.5, 3.), (2., 40.))]
