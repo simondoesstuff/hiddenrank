@@ -36,7 +36,7 @@ def test_detection_shared_axis_and_readout():
 
 @pytest.mark.parametrize("integration,rn", [(False, 1.6), (True, 1.38)])
 def test_context_gating_and_common_readout(integration, rn):
-    task = contextual(128, integration=integration)
+    task = contextual(128, integration=integration, architecture="paper")
     expected = np.full((2, 2), .6)
     np.fill_diagonal(expected, 3 * rn + .6)
     np.testing.assert_allclose(overlap(task.n, task.m), expected, atol=1e-14)
@@ -67,3 +67,9 @@ def test_discrimination_dynamics_respond_to_go_but_not_orthogonal_stimulus():
     # Nonlinear finite-size readout leakage remains possible despite orthogonal
     # input vectors; it must be small relative to the Go response.
     assert abs(responses[1]) < .2 * responses[0]
+
+
+def test_supplement_context_coefficient_order():
+    task = contextual(128)
+    np.testing.assert_allclose(overlap(task.n, task.directions[:, 2:]), 3*np.eye(2), atol=1e-14)
+    np.testing.assert_allclose(overlap(task.m, task.directions[:, 2:]), 1.6*np.eye(2), atol=1e-14)

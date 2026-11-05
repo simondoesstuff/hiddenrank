@@ -51,11 +51,13 @@ def detection(size: int, seed: int = 0, *, rm: float = 2., rn: float = 2.,
 
 
 def contextual(size: int, seed: int = 0, *, integration: bool = False,
-               orthogonal: bool = True) -> Task:
+               orthogonal: bool = True, architecture: str = "supplement") -> Task:
     """Eq. 155, including the distinct Fig. 5 and Fig. 6 values of rn."""
     a, b, ya, yb, ca, cb, w = patterns(size, 7, seed, orthogonal=orthogonal).T
     a, b, ya, yb = (1.2 * v for v in (a, b, ya, yb))
-    rm, rn, bm, bn = 3., 1.38 if integration else 1.6, .6, 1.
+    from .protocol import context_coefficients
+    rm, rn = context_coefficients("integration" if integration else "context", architecture)
+    bm, bn = .6, 1.
     m = np.stack([ya + rm * ca + bm * w, yb + rm * cb + bm * w], axis=1)
     n = np.stack([a + rn * ca + bn * w, b + rn * cb + bn * w], axis=1)
     return Task(m, n, np.stack([a, b, ca, cb], axis=1), w,
