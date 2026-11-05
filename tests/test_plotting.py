@@ -57,3 +57,25 @@ def test_legacy_integration_archive_marks_missing_overlap_data():
     fig = _integration_figure(data, json.loads(data["metadata"]))
     assert any("unavailable" in text.get_text() for ax in fig.axes for text in ax.texts)
     plt.close(fig)
+
+
+def test_scaffold_coordinates_preferred_to_recurrent_overlaps():
+    data = _data([[.6, .1], [.6, .1]], [0, 1])
+    data["scaffold_coordinates"] = np.ones((2, 2, 11, 2)) * 2
+    meta = json.loads(data["metadata"])
+    meta["architecture"] = "supplement"
+    fig = _integration_figure(data, meta)
+    axis = next(ax for ax in fig.axes if ax.get_title() == "Population scaffold trajectories")
+    assert "scaffold coordinate" in axis.get_xlabel()
+    # Individual paths come first; the kappa fixture remains below one.
+    np.testing.assert_array_equal(axis.lines[0].get_xdata(), 2.)
+    plt.close(fig)
+
+
+def test_scaffold_ring_uses_architecture_specific_right_pattern_variance():
+    from lowrank.plotting import _integration_ring
+    paper = _integration_ring(architecture="paper")
+    supplement = _integration_ring(architecture="supplement")
+    assert np.linalg.norm(supplement[0]) > np.linalg.norm(paper[0])
+    with pytest.raises(ValueError, match="architecture"):
+        _integration_ring(architecture="invalid")

@@ -41,30 +41,34 @@ def _response_grid(stimulus, responses):
     return a, b, values
 
 
-def _integration_ring(g=.8):
+def _integration_ring(g=.8, architecture="paper"):
     """Eq. 156 Gaussian scaffold, before adding readout/context/stimulus terms."""
     from scipy.optimize import brentq
     from .meanfield import gaussian_expectation
 
-    overlap = 3. * 1.38
+    if architecture not in ("paper", "supplement"):
+        raise ValueError(f"Unknown contextual architecture: {architecture}")
+    rm, rn = (1.38, 3.) if architecture == "supplement" else (3., 1.38)
+    overlap = rm * rn
     variance = cast(float, brentq(lambda v: overlap * gaussian_expectation(
         lambda z: 1 - np.tanh(z)**2, 0., v) - 1, 0., 100.))
     rate_variance = gaussian_expectation(lambda z: np.tanh(z)**2, 0., variance)
-    radius = np.sqrt(max(0., variance - g*g*rate_variance) / (1.2**2 + 3.**2))
+    radius = np.sqrt(max(0., variance - g*g*rate_variance) / (1.2**2 + rm**2))
     angle = np.linspace(0., 2*np.pi, 201)
     return radius * np.column_stack([np.cos(angle), np.sin(angle)])
 
 
 def _integration_figure(data, meta):
     """Fig. 6 C–F: outputs, state projections, decisions, recurrent overlaps."""
-    fig = plt.figure(figsize=(13, 8.5))
+    fig = plt.figure(figsize=(14, 8.5))
     grid = fig.add_gridspec(2, 3)
     axes = [fig.add_subplot(grid[0, 0]),
             fig.add_subplot(grid[0, 1], projection="3d"),
             fig.add_subplot(grid[0, 2], projection="3d"),
             fig.add_subplot(grid[1, 0]), fig.add_subplot(grid[1, 1]),
             fig.add_subplot(grid[1, 2])]
-    fig.subplots_adjust(left=.07, right=.97, bottom=.09, top=.83, hspace=.55, wspace=.45)
+    fig.subplots_adjust(left=.07, right=.945, bottom=.09, top=.85, hspace=.55, wspace=.45)
+    coordinate_key = "scaffold_coordinates" if "scaffold_coordinates" in data else "kappa"
     selected = _integration_selection(data)
     times = data["times"]
     interval = (times >= meta["baseline_duration"]) & (times <= meta["stimulus_end"])
@@ -83,13 +87,15 @@ def _integration_figure(data, meta):
         ax.scatter(*trajectory[0], color=color, marker="o", s=22)
         ax.scatter(*trajectory[-1], color=color, marker="^", s=30)
         ax.set(xlabel=r"$I_A$ projection", ylabel=r"$I_B$ projection",
-               zlabel=r"$w$ projection", title=f"Context {'AB'[context]}: population state")
+               zlabel="", title=f"Context {'AB'[context]}: population state")
         ax.view_init(elev=24, azim=-54)
         ax.tick_params(labelsize=8)
-        if "kappa" in data:
-            for trial in data["kappa"][:, condition]:
+        # 3D z labels are omitted from Matplotlib tight bounding boxes.
+        ax.text2D(.98, .54, r"$w$", transform=ax.transAxes, ha="right")
+        if coordinate_key in data:
+            for trial in data[coordinate_key][:, condition]:
                 axes[5].plot(*trial[interval].T, color=color, alpha=.25, lw=.7)
-            trajectory = data["kappa"][:, condition].mean(axis=0)[interval]
+            trajectory = data[coordinate_key][:, condition].mean(axis=0)[interval]
             axes[5].plot(*trajectory.T, color=color, lw=2, label=f"Context {'AB'[context]}")
             axes[5].scatter(*trajectory[0], color=color, s=22)
             axes[5].scatter(*trajectory[-1], color=color, marker="^", s=30)
@@ -110,13 +116,16 @@ def _integration_figure(data, meta):
             ax.set_xticks(np.arange(len(indices)), [f"{a:g}, {b:g}" for a, b in stimulus], rotation=30)
             ax.set(xlabel="Sampled (A, B) strengths", ylabel="P(Go)", ylim=(0, 1.05))
         ax.set_title(f"Context {'AB'[context]}: response probability")
-    if "kappa" in data:
-        ring = data["ring_background"] if "ring_background" in data else _integration_ring(meta.get("g", .8))
+    if coordinate_key in data:
+        ring = data["ring_background"] if "ring_background" in data else _integration_ring(meta.get("g", .8), meta.get("architecture", "paper"))
         axes[5].plot(*ring.T, color=".75", lw=2, label="Eq. 156 scaffold (mean field)", zorder=-1)
         limits = axes[5].get_xlim()
         axes[5].plot(limits, limits, ls="--", color=".75", lw=.8, zorder=-2)
         axes[5].set(xlabel=r"$\kappa_1=\langle n^{(1)}\tanh x\rangle$",
                     ylabel=r"$\kappa_2=\langle n^{(2)}\tanh x\rangle$", title="Recurrent population overlaps")
+        if coordinate_key == "scaffold_coordinates":
+            axes[5].set(xlabel=r"$m^{(1)}$ scaffold coordinate",
+                        ylabel=r"$m^{(2)}$ scaffold coordinate", title="Population scaffold trajectories")
         axes[5].set_aspect("equal", adjustable="datalim")
         axes[5].legend(frameon=False, fontsize=7)
     else:
@@ -206,7 +215,8 @@ def plot_experiment(source: str | Path, output: str | Path) -> Path:
             # Matplotlib's constrained layout cannot reserve 3D axis labels.
             fig.set_layout_engine(None)
             fig.subplots_adjust(left=.065, right=.985, bottom=.23, top=.73, wspace=.44)
-        fig.suptitle(f"{titles[name]}\nFinite-network recreation · N={meta['size']} · {meta['trials']} {repetitions} · {sampling} · seed={meta['seed']}", fontsize=12)
+        architecture = f" · {meta['architecture']} architecture" if "architecture" in meta else ""
+        fig.suptitle(f"{titles[name]}\nFinite-network recreation · N={meta['size']} · {meta['trials']} {repetitions} · {sampling} · seed={meta['seed']}{architecture}", fontsize=12)
         path = Path(output)
         path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(path, dpi=180, bbox_inches="tight")
