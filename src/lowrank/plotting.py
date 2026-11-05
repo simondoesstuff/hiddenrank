@@ -30,6 +30,27 @@ def _integration_selection(data):
     return selected
 
 
+
+def _integration_groups(data, key):
+    """Per-realization paths, with equal weight for each irrelevant strength.
+
+    Average duplicate samples within a stimulus pair first, so neither archive
+    order nor repeated conditions change the weight of a nuisance strength.
+    Sparse representative archives use the nuisance strengths they contain.
+    """
+    groups = []
+    for context in np.unique(data["contexts"]):
+        relevant = int(context)
+        indices = np.flatnonzero(data["contexts"] == context)
+        for strength in np.unique(data["stimulus"][indices, relevant]):
+            selected = indices[data["stimulus"][indices, relevant] == strength]
+            nuisance = data["stimulus"][selected, 1 - relevant]
+            paths = [data[key][:, selected[nuisance == value]].mean(axis=1)
+                     for value in np.unique(nuisance)]
+            groups.append((int(context), float(strength), np.stack(paths).mean(axis=0)))
+    return groups
+
+
 def _response_grid(stimulus, responses):
     """A complete Cartesian grid, or None for a representative sparse subset."""
     a, b = (np.unique(stimulus[:, i]) for i in range(2))
@@ -63,8 +84,8 @@ def _integration_figure(data, meta):
     fig = plt.figure(figsize=(14, 8.5))
     grid = fig.add_gridspec(2, 3)
     axes = [fig.add_subplot(grid[0, 0]),
-            fig.add_subplot(grid[0, 1], projection="3d"),
-            fig.add_subplot(grid[0, 2], projection="3d"),
+            fig.add_subplot(grid[0, 1]),
+            fig.add_subplot(grid[0, 2]),
             fig.add_subplot(grid[1, 0]), fig.add_subplot(grid[1, 1]),
             fig.add_subplot(grid[1, 2])]
     fig.subplots_adjust(left=.07, right=.945, bottom=.09, top=.85, hspace=.55, wspace=.45)
@@ -79,26 +100,45 @@ def _integration_figure(data, meta):
         label = f"Context {'AB'[context]}: " + ", ".join(
             f"{channel}={value:.2g}" for channel, value in zip("AB", data["stimulus"][condition], strict=True))
         _trace(axes[0], times, data["traces"][:, condition], label, color)
-        ax = axes[i + 1]
-        for trajectory in data["projections"][:, condition]:
-            ax.plot(*trajectory[interval].T, color=color, alpha=.3, lw=.8)
-        trajectory = data["projections"][:, condition].mean(axis=0)[interval]
-        ax.plot(*trajectory.T, color=color, lw=2)
-        ax.scatter(*trajectory[0], color=color, marker="o", s=22)
-        ax.scatter(*trajectory[-1], color=color, marker="^", s=30)
-        ax.set(xlabel=r"$I_A$ projection", ylabel=r"$I_B$ projection",
-               zlabel="", title=f"Context {'AB'[context]}: population state")
-        ax.view_init(elev=24, azim=-54)
-        ax.tick_params(labelsize=8)
-        # 3D z labels are omitted from Matplotlib tight bounding boxes.
-        ax.text2D(.98, .54, r"$w$", transform=ax.transAxes, ha="right")
-        if coordinate_key in data:
-            for trial in data[coordinate_key][:, condition]:
-                axes[5].plot(*trial[interval].T, color=color, alpha=.25, lw=.7)
-            trajectory = data[coordinate_key][:, condition].mean(axis=0)[interval]
-            axes[5].plot(*trajectory.T, color=color, lw=2, label=f"Context {'AB'[context]}")
-            axes[5].scatter(*trajectory[0], color=color, s=22)
-            axes[5].scatter(*trajectory[-1], color=color, marker="^", s=30)
+    strengths = np.unique(data["stimulus"])
+    colors = {float(value): plt.colormaps["viridis"](position)
+              for value, position in zip(strengths, np.linspace(.1, .9, len(strengths)), strict=True)}
+    for context, strength, paths in _integration_groups(data, "projections"):
+        ax = axes[context + 1]
+        color = colors[strength]
+        label = f"{'AB'[context]}={strength:.2g}"
+        # Match the paper's relevant-input/readout plane after marginalizing
+        # over the irrelevant channel; failed Go trials remain in the mean.
+        for path in paths:
+            trajectory = path[interval][:, [context, 2]]
+            ax.plot(*trajectory.T, color=color, alpha=.2, lw=.7)
+        trajectory = paths.mean(axis=0)[interval][:, [context, 2]]
+        ax.plot(*trajectory.T, color=color, lw=2, label=label)
+        ax.scatter(*trajectory[0], color=color, marker="o", s=16)
+        ax.scatter(*trajectory[-1], color=color, marker="^", s=24)
+        ax.set(xlabel=rf"$I_{'AB'[context]}$ projection", ylabel=r"$w$ projection",
+               title=f"Context {'AB'[context]}: population state")
+        ax.legend(frameon=False, fontsize=7)
+    if coordinate_key in data:
+        groups = _integration_groups(data, coordinate_key)
+        displayed = set()
+        for context in np.unique(data["contexts"]):
+            available = np.array([strength for group_context, strength, _ in groups
+                                  if group_context == context])
+            displayed.update((int(context), float(available[np.argmin(abs(available - target))]))
+                             for target in [.1, .4, .6, .9])
+        for context, strength, paths in groups:
+            if (context, strength) not in displayed:
+                continue
+            color = colors[strength]
+            style = "-" if context == 0 else "--"
+            for path in paths:
+                axes[5].plot(*path[interval].T, color=color, ls=style, alpha=.15, lw=.7)
+            trajectory = paths.mean(axis=0)[interval]
+            axes[5].plot(*trajectory.T, color=color, ls=style, lw=2,
+                         label=f"{'AB'[context]}={strength:.2g}")
+            axes[5].scatter(*trajectory[0], color=color, s=16)
+            axes[5].scatter(*trajectory[-1], color=color, marker="^", s=24)
     axes[0].set(xlabel=r"Time / $\tau$", ylabel="Readout − baseline", title="Population output (all trials)")
     axes[0].legend(frameon=False, fontsize=8)
     probability = data["decisions"].mean(axis=0)
@@ -127,7 +167,7 @@ def _integration_figure(data, meta):
             axes[5].set(xlabel=r"$m^{(1)}$ scaffold coordinate",
                         ylabel=r"$m^{(2)}$ scaffold coordinate", title="Population scaffold trajectories")
         axes[5].set_aspect("equal", adjustable="datalim")
-        axes[5].legend(frameon=False, fontsize=7)
+        axes[5].legend(frameon=False, fontsize=6, ncol=2)
     else:
         axes[5].axis("off")
         axes[5].text(.5, .5, "Recurrent overlaps unavailable\nRegenerate simulation data", ha="center", va="center")

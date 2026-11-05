@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from lowrank.plotting import _integration_figure, _integration_selection, _response_grid, plot_experiment
+from lowrank.plotting import _integration_figure, _integration_groups, _integration_selection, _response_grid, plot_experiment
 
 
 def _data(stimulus, contexts) -> dict[str, Any]:
@@ -67,7 +67,7 @@ def test_scaffold_coordinates_preferred_to_recurrent_overlaps():
     fig = _integration_figure(data, meta)
     axis = next(ax for ax in fig.axes if ax.get_title() == "Population scaffold trajectories")
     assert "scaffold coordinate" in axis.get_xlabel()
-    # Individual paths come first; the kappa fixture remains below one.
+    # Grouped per-realization paths come first; the kappa fixture stays below one.
     np.testing.assert_array_equal(axis.lines[0].get_xdata(), 2.)
     plt.close(fig)
 
@@ -79,3 +79,37 @@ def test_scaffold_ring_uses_architecture_specific_right_pattern_variance():
     assert np.linalg.norm(supplement[0]) > np.linalg.norm(paper[0])
     with pytest.raises(ValueError, match="architecture"):
         _integration_ring(architecture="invalid")
+
+
+def test_grouped_paths_cancel_irrelevant_input_and_preserve_failed_trials():
+    pairs = [[a, b] for a in [.1, .6] for b in [-1., 1.]]
+    data = _data(pairs * 2, [0] * 4 + [1] * 4)
+    # Context A tracks A; context B tracks B. Independent nuisance terms
+    # cancel under equal averaging, including a failed/negative realization.
+    values = np.empty((2, 8, 11, 3))
+    for condition, (a, b) in enumerate(data["stimulus"]):
+        context = data["contexts"][condition]
+        relevant, nuisance = (a, b) if context == 0 else (b, a - .35)
+        values[:, condition] = (np.array([-2., 4.]) + relevant + nuisance)[:, None, None]
+    data["projections"] = values
+    groups = _integration_groups(data, "projections")
+    assert [(context, strength) for context, strength, _ in groups] == [
+        (0, .1), (0, .6), (1, -1.), (1, 1.)]
+    for _, strength, paths in groups:
+        np.testing.assert_allclose(paths[:, 0, 0], [-2. + strength, 4. + strength])
+        np.testing.assert_allclose(paths.mean(axis=0), 1. + strength)
+    # Reordering and repeating a condition do not overweight its nuisance value.
+    order = [7, 0, 4, 2, 1, 6, 3, 5, 0]
+    shuffled = dict(data, stimulus=data["stimulus"][order], contexts=data["contexts"][order],
+                    projections=values[:, order])
+    for actual, expected in zip(_integration_groups(shuffled, "projections"), groups, strict=True):
+        assert actual[:2] == expected[:2]
+        np.testing.assert_allclose(actual[2], expected[2])
+
+
+def test_grouped_paths_support_sparse_representative_conditions():
+    data = _data([[.6, .1], [.6, .1]], [0, 1])
+    groups = _integration_groups(data, "projections")
+    assert [(context, strength) for context, strength, _ in groups] == [(0, .6), (1, .1)]
+    np.testing.assert_array_equal(groups[0][2], data["projections"][:, 0])
+    np.testing.assert_array_equal(groups[1][2], data["projections"][:, 1])
