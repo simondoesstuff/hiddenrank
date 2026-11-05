@@ -1,0 +1,8 @@
+- This project uses uv, basedpyright, pytest, equinox
+- Use einx is to simplify tensor logic.
+- Add new dependencies as necessary to streamline effort.
+- Maintain tests/ and docs/ as you add new features.
+- Docs should be **scannable**, very concise. We can always re-read the code (or a paper); docs provide high-level understanding.
+- Refactor in favor of deprecating features. We haven't yet hit v1.0 so make it clean.
+- Manage artifacts with snakemake where appropriate and store them in data/.
+- Particularly heavy or remotely-built artifacts like deep models should not be snakemake-managed and instead added as recipes to the justfile.
