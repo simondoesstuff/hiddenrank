@@ -6,7 +6,7 @@ Recreate key figures from **Mastrogiuseppe & Ostojic (2018)**, *Linking Connecti
 uv sync
 just figures                 # Snakemake; six figures, PNG + SVG + gallery
 just test                    # basedpyright + pytest
-just replication             # N=7500 iid contextual figures, 10 realizations
+just replication             # N=7500 iid contextual figures, 50 realizations
 ```
 
 Open the [preview gallery](data/preview/index.html) or [paper-size contextual gallery](data/replication/index.html) after the corresponding run. Compressed simulation measurements live in `data/preview/simulations/`; plots are in `data/preview/figures/`. Runs are seeded and Snakemake resumes completed stages.
@@ -21,12 +21,10 @@ Open the [preview gallery](data/preview/index.html) or [paper-size contextual ga
 | [6](data/preview/figures/figure6_integration.png) | Context-dependent integration, population/scaffold trajectories, response maps |
 | [4F](data/preview/figures/figure4_threshold_timescale.png) | Detection threshold and effective timescale near the bifurcation |
 
-The **preview** uses N=512 for Figs. 1–2 and N=1024 with orthogonalized Gaussian patterns for Figs. 3–6, two realizations each. Orthogonalization enforces the paper's limiting pattern covariances in smaller networks. The **replication** configuration uses N=7500, iid Gaussian patterns and ten realizations for Figures 5–6. The **paper** configuration expands to the published population/ensemble sizes for every figure.
+The **preview** uses N=512 for Figs. 1–2 and N=1024 with orthogonalized Gaussian patterns for Figs. 3–6, two realizations each. Orthogonalization enforces the paper's limiting pattern covariances in smaller networks. The **replication** configuration uses N=7500, iid Gaussian patterns and fifty realizations for Figures 5–6. The **paper** configuration runs Figures 1–4 at published population/ensemble sizes; contextual Figures 5–6 use the replication profile.
 
 ```sh
 just paper                  # original N / realization counts; see config/paper.yaml
-# Extend the existing contextual checkpoints from 10 to 50 realizations:
-uv run snakemake -s workflow/Snakefile --configfile config/replication.yaml --config trials=50 --cores 2
 just dry-run
 # One figure, or custom settings:
 uv run snakemake -s workflow/Snakefile --cores 1 data/preview/figures/figure3_go_nogo.png

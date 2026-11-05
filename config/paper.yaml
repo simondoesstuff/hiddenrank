@@ -14,3 +14,4 @@ experiments:
   context: {size: 7500, trials: 50, duration: 85.0}
   integration: {size: 7500, trials: 50, duration: 85.0}
 architecture: supplement
+figures: [figure1_spontaneous, figure2_inputs, figure3_go_nogo, figure4_detection]

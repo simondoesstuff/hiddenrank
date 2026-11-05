@@ -2,7 +2,7 @@
 profile: replication
 seed: 2018
 size: 7500
-trials: 10
+trials: 50
 dt: 0.1
 duration: 85.0
 orthogonal: false

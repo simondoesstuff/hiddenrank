@@ -34,21 +34,36 @@ rule all:
         ROOT + "/index.html"
 
 
-rule simulate_dynamics:
+rule simulate_dynamics_trial:
     input:
-        "src/lowrank/__init__.py", "src/lowrank/network.py", "src/lowrank/dynamics_figures.py", "src/lowrank/meanfield.py"
+        "src/lowrank/network.py", "src/lowrank/spontaneous.py", "src/lowrank/dynamics_figures.py", "src/lowrank/meanfield.py"
+    output:
+        ROOT + "/replicates/{figure}/{trial}.npz"
+    wildcard_constraints:
+        figure=DYNAMICS, trial=r"\d{3}"
+    params:
+        operation="trial", experiment=lambda wc: FIGURES[wc.figure],
+        size=lambda wc: setting(wc, "size"), seed=config["seed"], dt=config["dt"],
+        duration=lambda wc: setting(wc, "duration"), trial=lambda wc: int(wc.trial),
+    threads: 1
+    resources:
+        mem_mb=lambda wc: max(1024, int(setting(wc, "size")**2 * 12 / 1e6 + 1024))
+    script:
+        "scripts/dynamics.py"
+
+
+rule aggregate_dynamics:
+    input:
+        shards=lambda wc: [ROOT + f"/replicates/{wc.figure}/{trial:03}.npz" for trial in range(setting(wc, "trials"))],
+        source="src/lowrank/dynamics_figures.py",
     output:
         ROOT + "/simulations/{figure}.npz"
     wildcard_constraints:
         figure=DYNAMICS
     params:
-        experiment=lambda wc: FIGURES[wc.figure],
-        size=lambda wc: setting(wc, "size"), trials=lambda wc: setting(wc, "trials"),
-        seed=config["seed"], dt=config["dt"], duration=lambda wc: setting(wc, "duration"),
-    threads: 1
-    shell:
-        "PYTHONPATH='' MPLBACKEND=Agg uv run python -m lowrank run {params.experiment} {output:q} "
-        "--size {params.size} --trials {params.trials} --seed {params.seed} --dt {params.dt} --duration {params.duration}"
+        operation="aggregate"
+    script:
+        "scripts/dynamics.py"
 
 
 rule simulate_task_trial:

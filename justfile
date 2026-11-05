@@ -17,7 +17,7 @@ typecheck path='src':
 figures cores='1':
 	env PYTHONPATH='' uv run snakemake --snakefile workflow/Snakefile --cores {{cores}}
 
-# Original sizes and ensemble counts; run on a suitable compute host.
+# Published-size Figures 1–4 (contextual Figures 5–6 use replication).
 paper cores='1':
 	env PYTHONPATH='' uv run snakemake --snakefile workflow/Snakefile --configfile config/paper.yaml --cores {{cores}}
 
@@ -28,6 +28,6 @@ dry-run:
 pilot cores='1':
 	env PYTHONPATH='' uv run snakemake --snakefile workflow/Snakefile --configfile config/pilot.yaml --cores {{cores}}
 
-# Expanded contextual ensembles with resumable realization checkpoints.
+# Fifty contextual realizations with resumable checkpoints.
 replication cores='2':
 	env PYTHONPATH='' uv run snakemake --snakefile workflow/Snakefile --configfile config/replication.yaml --cores {{cores}}
