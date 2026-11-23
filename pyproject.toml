@@ -40,3 +40,7 @@ dev = ["basedpyright>=1.40.2"]
 
 [tool.basedpyright]
 typeCheckingMode = "basic"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
